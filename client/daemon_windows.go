@@ -1,3 +1,5 @@
+// +build windows
+
 package client
 
 import (
@@ -9,7 +11,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"syscall"
 	"time"
 
 	"gopkg.in/fsnotify.v1"
@@ -278,63 +279,47 @@ func NewKeysFile(fn string) Keys {
 
 // Lock performs the nonblocking syscall lock and retries until the global timeout is met.
 func (k *KeysFile) Lock() error {
-	fd, err := k.getFD()
-	if err != nil {
-		return err
-	}
-	err = syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)
-	if err == nil {
-		return nil
-	}
+	fMu := MakeFileMutex(k.fn)
+	fMu.Lock()
 	overallTimeout := time.After(lockTimeout)
 	for {
 		select {
 		case <-overallTimeout:
-			return err
+			return fmt.Errorf("lock timeout")
 		case <-time.After(lockRetryTime):
-			err := syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)
-			if err == nil {
-				return nil
-			}
+			fMu.Lock()
+			return nil
 		}
 	}
 }
 
 // Unlock performs the nonblocking syscall unlock and retries until the global timeout is met.
 func (k *KeysFile) Unlock() error {
-	fd, err := k.getFD()
-	if err != nil {
-		return err
-	}
-	err = syscall.Flock(fd, syscall.LOCK_UN|syscall.LOCK_NB)
-	if err == nil {
-		return nil
-	}
+	fMu := MakeFileMutex(k.fn)
+	fMu.Unlock()
 	overallTimeout := time.After(lockTimeout)
 	for {
 		select {
 		case <-overallTimeout:
-			return err
+			return fmt.Errorf("lock timeout")
 		case <-time.After(lockRetryTime):
-			err = syscall.Flock(fd, syscall.LOCK_UN|syscall.LOCK_NB)
-			if err == nil {
-				return nil
-			}
+			fMu.Unlock()
+			return nil
 		}
 	}
 }
 
-func (k *KeysFile) getFD() (int, error) {
-	if k.fd != -1 {
-		return k.fd, nil
-	}
-	fd, err := syscall.Open(k.fn, syscall.O_RDWR, 0)
-	if err != nil {
-		return -1, err
-	}
-	k.fd = fd
-	return k.fd, nil
-}
+// func (k *KeysFile) getFD() (int, error) {
+// 	if k.fd != -1 {
+// 		return k.fd, nil
+// 	}
+// 	fd, err := syscall.Open(k.fn, syscall.O_RDWR, 0)
+// 	if err != nil {
+// 		return -1, err
+// 	}
+// 	k.fd = fd.
+// 	return k.fd, nil
+// }
 
 // Get will get the list of key ids. It expects Lock to have been called.
 func (k *KeysFile) Get() ([]string, error) {
