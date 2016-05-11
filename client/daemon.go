@@ -150,11 +150,7 @@ func (d *daemon) initialize() error {
 	if err != nil {
 		return fmt.Errorf("Failed to open up register file permissions: %s", err.Error())
 	}
-	f, err := NewKeysFile(d.registerFilename())
-	if err != nil {
-		return err
-	}
-	d.registerKeyFile = f
+	d.registerKeyFile = NewKeysFile(d.registerFilename())
 	return nil
 }
 
@@ -276,17 +272,18 @@ type KeysFile struct {
 }
 
 // NewKeysFile takes in a filename and outputs an implementation of the Keys interface
-func NewKeysFile(fn string) (Keys, error) {
-	fMu, err := MakeFileMutex(fn)
-	if err != nil {
-		return nil, err
-	}
-	return &KeysFile{fn, fMu}, nil
+func NewKeysFile(fn string) Keys {
+	return &KeysFile{fn, nil}
 }
 
 // Lock performs the nonblocking syscall lock and retries until the global timeout is met.
 func (k *KeysFile) Lock() error {
-	err := k.fMu.Lock()
+	fMu, err := MakeFileMutex(k.fn)
+	if err != nil {
+		return err
+	}
+	k.fMu = fMu
+	err = k.fMu.Lock()
 	if err == nil {
 		return nil
 	}
@@ -306,7 +303,12 @@ func (k *KeysFile) Lock() error {
 
 // Unlock performs the nonblocking syscall unlock and retries until the global timeout is met.
 func (k *KeysFile) Unlock() error {
-	err := k.fMu.Unlock()
+	fMu, err := MakeFileMutex(k.fn)
+	if err != nil {
+		return err
+	}
+	k.fMu = fMu
+	err = k.fMu.Unlock()
 	if err == nil {
 		return nil
 	}

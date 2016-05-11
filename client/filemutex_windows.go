@@ -71,7 +71,7 @@ func (m *FileMutex) Lock() error {
 	m.mu.Lock()
 	if m.fd != INVALID_FILE_HANDLE {
 		var ol syscall.Overlapped
-		if err := lockFileEx(m.fd, 0, 0, 1, 0, &ol); err != nil {
+		if err := lockFileEx(m.fd, LOCKFILE_EXCLUSIVE_LOCK, 0, 1, 0, &ol); err != nil {
 			return err
 		}
 	}

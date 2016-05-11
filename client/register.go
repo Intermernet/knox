@@ -34,17 +34,12 @@ func runRegister(cmd *Command, args []string) {
 	if *registerKey == "" && *registerKeyFile == "" {
 		fatalf("You must include a key or key file to register. see 'knox help register'")
 	}
-	k, err := NewKeysFile(daemonFolder + daemonToRegister)
-	if err != nil {
-		fatalf("There was an error reading input key file %s", err.Error())
-	}
+	k := NewKeysFile(daemonFolder + daemonToRegister)
 
+	var err error
 	var ks []string
 	if *registerKey == "" {
-		f, err := NewKeysFile(*registerKeyFile)
-		if err != nil {
-			fatalf("There was an error reading input key file %s", err.Error())
-		}
+		f := NewKeysFile(*registerKeyFile)
 		ks, err = f.Get()
 		if err != nil {
 			fatalf("There was an error reading input key file %s", err.Error())

@@ -367,10 +367,7 @@ func TestCreateGet(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 
-	k, err := NewKeysFile(dir + ps + "TestCreateGet")
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := NewKeysFile(dir + ps + "TestCreateGet")
 	_, err = k.Get()
 	if err == nil {
 		t.Fatal("error is nil for a bad key")
@@ -400,10 +397,7 @@ func TestDuplicateAdd(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 
-	k, err := NewKeysFile(dir + ps + "TestCreateGet")
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := NewKeysFile(dir + ps + "TestCreateGet")
 
 	err = k.Add([]string{"a"})
 	if err != nil {
@@ -445,10 +439,7 @@ func TestAddRemove(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 
-	k, err := NewKeysFile(dir + ps + "TestCreateGet")
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := NewKeysFile(dir + ps + "TestCreateGet")
 
 	err = k.Add([]string{"a"})
 	if err != nil {
@@ -486,10 +477,7 @@ func TestOverwrite(t *testing.T) {
 		t.Fatal("Failed to create temp directory: " + err.Error())
 	}
 	defer TearDownTest(dir)
-	k, err := NewKeysFile(dir + ps + "TestCreateGet")
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := NewKeysFile(dir + ps + "TestCreateGet")
 
 	err = k.Add([]string{"a"})
 	if err != nil {
@@ -531,10 +519,7 @@ func TestBackwardsCompat(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 	fn := dir + ps + "TestBackwardsCompat"
-	k, err := NewKeysFile(dir + ps + "TestCreateGet")
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := NewKeysFile(dir + ps + "TestCreateGet")
 	err = ioutil.WriteFile(fn, []byte{}, defaultFilePermission)
 	if err != nil {
 		t.Fatalf("%s is not nil", err)
