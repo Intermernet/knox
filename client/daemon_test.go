@@ -13,7 +13,7 @@ import (
 )
 
 var registeredFile = ".registered"
-var keysDir = "/keys/"
+var keysDir = ps + "keys" + ps
 
 // buildServer returns a server. Call Close when finished.
 func buildServer(d *returnParameters) *httptest.Server {
@@ -191,10 +191,10 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf("%s is not nil", err)
 	}
 	keys, err := d.registerKeyFile.Get()
-	err = d.registerKeyFile.Unlock()
 	if err != nil {
-		t.Fatalf("%s is not nil", err)
+		t.Fatal(err)
 	}
+	err = d.registerKeyFile.Unlock()
 	if err != nil {
 		t.Fatalf("%s is not nil", err)
 	}
@@ -367,7 +367,10 @@ func TestCreateGet(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 
-	k := NewKeysFile(dir + "/TestCreateGet")
+	k, err := NewKeysFile(dir + ps + "TestCreateGet")
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = k.Get()
 	if err == nil {
 		t.Fatal("error is nil for a bad key")
@@ -397,7 +400,10 @@ func TestDuplicateAdd(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 
-	k := NewKeysFile(dir + "/TestDuplicateAdd")
+	k, err := NewKeysFile(dir + ps + "TestCreateGet")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = k.Add([]string{"a"})
 	if err != nil {
@@ -439,7 +445,10 @@ func TestAddRemove(t *testing.T) {
 	}
 	defer TearDownTest(dir)
 
-	k := NewKeysFile(dir + "/TestAddRemove")
+	k, err := NewKeysFile(dir + ps + "TestCreateGet")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = k.Add([]string{"a"})
 	if err != nil {
@@ -477,7 +486,10 @@ func TestOverwrite(t *testing.T) {
 		t.Fatal("Failed to create temp directory: " + err.Error())
 	}
 	defer TearDownTest(dir)
-	k := NewKeysFile(dir + "/TestOverwrite")
+	k, err := NewKeysFile(dir + ps + "TestCreateGet")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = k.Add([]string{"a"})
 	if err != nil {
@@ -518,8 +530,11 @@ func TestBackwardsCompat(t *testing.T) {
 		t.Fatal("Failed to create temp directory: " + err.Error())
 	}
 	defer TearDownTest(dir)
-	fn := dir + "/TestBackwardsCompat"
-	k := NewKeysFile(fn)
+	fn := dir + ps + "TestBackwardsCompat"
+	k, err := NewKeysFile(dir + ps + "TestCreateGet")
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = ioutil.WriteFile(fn, []byte{}, defaultFilePermission)
 	if err != nil {
 		t.Fatalf("%s is not nil", err)

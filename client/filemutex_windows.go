@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build windows
+
 package client
 
 import (
+	"fmt"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -52,54 +55,36 @@ type FileMutex struct {
 	fd syscall.Handle
 }
 
-func MakeFileMutex(filename string) *FileMutex {
+func MakeFileMutex(filename string) (*FileMutex, error) {
 	if filename == "" {
-		return &FileMutex{fd: INVALID_FILE_HANDLE}
+		return &FileMutex{fd: INVALID_FILE_HANDLE}, fmt.Errorf("invalid file handle")
 	}
 	fd, err := syscall.CreateFile(&(syscall.StringToUTF16(filename)[0]), syscall.GENERIC_READ|syscall.GENERIC_WRITE,
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE, nil, syscall.OPEN_ALWAYS, syscall.FILE_ATTRIBUTE_NORMAL, 0)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &FileMutex{fd: fd}
+	return &FileMutex{fd: fd}, nil
 }
 
-func (m *FileMutex) Lock() {
+func (m *FileMutex) Lock() error {
 	m.mu.Lock()
 	if m.fd != INVALID_FILE_HANDLE {
 		var ol syscall.Overlapped
-		if err := lockFileEx(m.fd, LOCKFILE_EXCLUSIVE_LOCK, 0, 1, 0, &ol); err != nil {
-			panic(err)
+		if err := lockFileEx(m.fd, 0, 0, 1, 0, &ol); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
-func (m *FileMutex) Unlock() {
+func (m *FileMutex) Unlock() error {
 	if m.fd != INVALID_FILE_HANDLE {
 		var ol syscall.Overlapped
 		if err := unlockFileEx(m.fd, 0, 1, 0, &ol); err != nil {
-			panic(err)
+			return err
 		}
 	}
 	m.mu.Unlock()
-}
-
-func (m *FileMutex) RLock() {
-	m.mu.RLock()
-	if m.fd != INVALID_FILE_HANDLE {
-		var ol syscall.Overlapped
-		if err := lockFileEx(m.fd, 0, 0, 1, 0, &ol); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func (m *FileMutex) RUnlock() {
-	if m.fd != INVALID_FILE_HANDLE {
-		var ol syscall.Overlapped
-		if err := unlockFileEx(m.fd, 0, 1, 0, &ol); err != nil {
-			panic(err)
-		}
-	}
-	m.mu.RUnlock()
+	return nil
 }

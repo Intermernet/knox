@@ -1,5 +1,3 @@
-// +build windows
-
 package client
 
 import (
@@ -35,8 +33,9 @@ See also: knox register, knox unregister
 	`,
 }
 
-var daemonFolder = "/var/lib/knox"
-var daemonToRegister = "/.registered"
+var ps = string(os.PathSeparator)
+var daemonFolder = ps + "var" + ps + "lib" + ps + "knox"
+var daemonToRegister = ps + ".registered"
 var daemonKeys = "/v0/keys/"
 
 var lockTimeout = 10 * time.Second
@@ -151,7 +150,11 @@ func (d *daemon) initialize() error {
 	if err != nil {
 		return fmt.Errorf("Failed to open up register file permissions: %s", err.Error())
 	}
-	d.registerKeyFile = NewKeysFile(d.registerFilename())
+	f, err := NewKeysFile(d.registerFilename())
+	if err != nil {
+		return err
+	}
+	d.registerKeyFile = f
 	return nil
 }
 
@@ -268,58 +271,58 @@ type Keys interface {
 
 // KeysFile is an implementation of Keys based on the file system for the register file.
 type KeysFile struct {
-	fn string
-	fd int
+	fn  string
+	fMu *FileMutex
 }
 
 // NewKeysFile takes in a filename and outputs an implementation of the Keys interface
-func NewKeysFile(fn string) Keys {
-	return &KeysFile{fn, -1}
+func NewKeysFile(fn string) (Keys, error) {
+	fMu, err := MakeFileMutex(fn)
+	if err != nil {
+		return nil, err
+	}
+	return &KeysFile{fn, fMu}, nil
 }
 
 // Lock performs the nonblocking syscall lock and retries until the global timeout is met.
 func (k *KeysFile) Lock() error {
-	fMu := MakeFileMutex(k.fn)
-	fMu.Lock()
+	err := k.fMu.Lock()
+	if err == nil {
+		return nil
+	}
 	overallTimeout := time.After(lockTimeout)
 	for {
 		select {
 		case <-overallTimeout:
-			return fmt.Errorf("lock timeout")
+			return err
 		case <-time.After(lockRetryTime):
-			fMu.Lock()
-			return nil
+			err = k.fMu.Lock()
+			if err == nil {
+				return nil
+			}
 		}
 	}
 }
 
 // Unlock performs the nonblocking syscall unlock and retries until the global timeout is met.
 func (k *KeysFile) Unlock() error {
-	fMu := MakeFileMutex(k.fn)
-	fMu.Unlock()
+	err := k.fMu.Unlock()
+	if err == nil {
+		return nil
+	}
 	overallTimeout := time.After(lockTimeout)
 	for {
 		select {
 		case <-overallTimeout:
-			return fmt.Errorf("lock timeout")
+			return err
 		case <-time.After(lockRetryTime):
-			fMu.Unlock()
-			return nil
+			err = k.fMu.Unlock()
+			if err == nil {
+				return nil
+			}
 		}
 	}
 }
-
-// func (k *KeysFile) getFD() (int, error) {
-// 	if k.fd != -1 {
-// 		return k.fd, nil
-// 	}
-// 	fd, err := syscall.Open(k.fn, syscall.O_RDWR, 0)
-// 	if err != nil {
-// 		return -1, err
-// 	}
-// 	k.fd = fd.
-// 	return k.fd, nil
-// }
 
 // Get will get the list of key ids. It expects Lock to have been called.
 func (k *KeysFile) Get() ([]string, error) {
